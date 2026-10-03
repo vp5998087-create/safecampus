@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SafeCampus – Red Team Mode</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Pacifico&family=Nunito:wght@600;700;800&display=swap">
+<style>
+:root{
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#ffe1ef; --dot:rgba(240,106,174,.28); --panel:#fffafd; --ink:#5b1a45; --muted:#8f4c76;
+  --rim:#f06aae; --edge:#c2367f; --line:#f8c8e0; --soft:#ffeaf5; --field:#fff3fa;
+  --brand:#d92a80; --brand-ink:#ffffff; --accent:#ffc2e2; --accent-ink:#5b1a45;
+  --alt:#7c4dde; --alt-ink:#ffffff; --sel:#6d28d9; --h1shadow:rgba(255,255,255,.95);
+  --room:#ffffff; --mapbg:#fff0f8; --grid:#f9d3e6; --wall:#a3286b; --cam:#7c4dde; --mtext:#4a1238; --mstroke:#ffffff;
+  --safe:#2fa66a; --warn:#e6b800; --danger:#f08a24; --crit:#d92d3a;
+  --px:"Fredoka","Baloo 2",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#2b1033; --dot:rgba(255,122,184,.16); --panel:#3d1a4a; --ink:#ffeaf6; --muted:#e6b5d6;
+    --rim:#ff7ab8; --edge:#14061c; --line:#6b2f78; --soft:#4e2360; --field:#2b1033;
+    --brand:#ff7ab8; --brand-ink:#3a0a26; --accent:#f9a8d4; --accent-ink:#3a0a26;
+    --alt:#a78bfa; --alt-ink:#1e0a3a; --sel:#fde047; --h1shadow:rgba(0,0,0,.35);
+    --room:#4d2360; --mapbg:#2b1033; --grid:#472058; --wall:#ffb3d9; --cam:#c4a8ff; --mtext:#ffffff; --mstroke:#14061c;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#2b1033; --dot:rgba(255,122,184,.16); --panel:#3d1a4a; --ink:#ffeaf6; --muted:#e6b5d6;
+  --rim:#ff7ab8; --edge:#14061c; --line:#6b2f78; --soft:#4e2360; --field:#2b1033;
+  --brand:#ff7ab8; --brand-ink:#3a0a26; --accent:#f9a8d4; --accent-ink:#3a0a26;
+  --alt:#a78bfa; --alt-ink:#1e0a3a; --sel:#fde047; --h1shadow:rgba(0,0,0,.35);
+  --room:#4d2360; --mapbg:#2b1033; --grid:#472058; --wall:#ffb3d9; --cam:#c4a8ff; --mtext:#ffffff; --mstroke:#14061c;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;min-height:100%;color:var(--ink);background-color:var(--bg);
+  background-image:radial-gradient(var(--dot) 2.5px,transparent 3px);background-size:26px 26px;
+  font:700 15px/1.45 "Nunito",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+h1,h2,h3,h4{font-family:var(--px);font-weight:600;margin:0;line-height:1.3}
+h1{font-family:"Pacifico","Fredoka",cursive;font-weight:400;font-size:28px;color:var(--brand);text-shadow:3px 3px 0 var(--h1shadow)}
+h2{font-size:18px;margin-bottom:10px}
+h3{font-size:16px;margin-bottom:6px}
+h4{font-size:14px;margin:14px 0 6px}
+.wrap{max-width:1080px;margin:0 auto;padding:0 14px 44px}
+header{padding:18px 0 10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+header svg{flex:0 0 auto;width:50px;height:50px;filter:drop-shadow(0 4px 0 var(--edge))}
+header .ttl{flex:1 1 260px}
+header p{margin:4px 0 0;color:var(--muted);max-width:58ch;font-size:14px}
+.actions{display:flex;gap:8px;flex:0 0 auto}
+.actions button{font-family:var(--px);font-size:14px;font-weight:600;padding:8px 14px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--brand);color:var(--brand-ink);border:3px solid var(--rim);border-radius:999px;box-shadow:0 4px 0 var(--edge);padding:8px 16px;font:600 14px var(--px);opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+.toast.on{opacity:1}
+.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;gap:8px;padding:8px 2px 12px;overflow-x:auto;border-bottom:3px dotted var(--rim)}
+.tabs button{font-family:var(--px);font-size:14px;font-weight:600;padding:9px 14px;flex:0 0 auto;border-radius:999px}
+button,.btn,.pill{font:inherit;font-weight:800;color:var(--ink);background:var(--panel);border:3px solid var(--rim);border-radius:14px;box-shadow:0 4px 0 var(--edge);padding:8px 13px;cursor:pointer;transition:transform .07s,box-shadow .07s}
+button:active:not(:disabled){transform:translateY(3px);box-shadow:0 1px 0 var(--edge)}
+button:disabled{opacity:.45;cursor:not-allowed}
+[aria-selected="true"],[aria-pressed="true"]{background:var(--brand)!important;color:var(--brand-ink)!important}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--sel);outline-offset:3px}
+section{display:none;padding-top:16px}
+section.on{display:block}
+.card{background:var(--panel);border:3px solid var(--rim);border-radius:18px;box-shadow:0 5px 0 var(--edge);padding:14px;margin-bottom:18px}
+.win>h2:first-child,.win>h3:first-child{margin:-14px -14px 14px;padding:10px 16px;background:var(--brand);color:var(--brand-ink);border-bottom:3px solid var(--rim);border-radius:15px 15px 0 0}
+.win.alt>h2:first-child,.win.alt>h3:first-child{background:var(--alt);color:var(--alt-ink)}
+.muted{color:var(--muted);font-size:13px;font-weight:600}
+.note{background:var(--accent);color:var(--accent-ink);border:3px solid var(--rim);border-radius:16px;box-shadow:0 4px 0 var(--edge);padding:9px 14px;margin-bottom:18px;font-size:14px}
+.note::before{content:"💗 "}
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.pill{font-size:13px;padding:6px 12px;border-radius:999px}
+.mapbox{position:relative;overflow-x:auto;border:3px solid var(--rim);border-radius:16px;background:var(--mapbg);box-shadow:0 5px 0 var(--edge)}
+.mapbox svg{display:block;width:100%;min-width:640px;height:auto}
+.mroom{stroke:var(--wall);stroke-width:3}
+.mtext{fill:var(--mtext);stroke:var(--mstroke);stroke-width:3.5px;paint-order:stroke;stroke-linejoin:round;font:800 12px "Nunito",sans-serif;text-anchor:middle;pointer-events:none}
+.msub{fill:var(--mtext);stroke:var(--mstroke);stroke-width:3px;paint-order:stroke;font:700 10.5px "Nunito",sans-serif;text-anchor:middle;pointer-events:none;opacity:.85}
+.mcov{fill:var(--cam);fill-opacity:.13;stroke:var(--cam);stroke-width:1.6;stroke-dasharray:5 4;pointer-events:none}
+.mcam{fill:var(--cam);stroke:var(--mstroke);stroke-width:2.5}
+.sel{stroke:var(--sel)!important;stroke-width:5!important}
+.trail{fill:none;stroke:var(--brand);stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:9 7;opacity:.9}
+.agent{font-size:22px;text-anchor:middle;dominant-baseline:middle;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35))}
+svg [data-k]{cursor:pointer}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;font-size:12px}
+.legend span{border:2px solid var(--line);border-radius:999px;padding:3px 10px;background:var(--soft)}
+.legend i{display:inline-block;width:12px;height:12px;border:2px solid var(--edge);border-radius:50%;margin-right:5px;vertical-align:-2px}
+.two{display:grid;gap:18px;grid-template-columns:1fr}
+@media(min-width:900px){.two{grid-template-columns:1.15fr 1fr}}
+label.f{display:block;font-size:13px;color:var(--muted);margin:9px 0}
+.fld,label.f input,label.f select{display:block;width:100%;margin-top:4px;padding:8px 11px;border:3px solid var(--rim);border-radius:12px;background:var(--field);color:var(--ink);font:inherit;font-weight:700}
+.checks{display:grid;gap:7px;margin:9px 0}
+.checks label{display:flex;gap:9px;align-items:center;font-size:14px}
+.checks input{width:19px;height:19px;accent-color:var(--brand)}
+.bar{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:10px}
+.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+.stat div{background:var(--panel);border:3px solid var(--rim);border-radius:14px;padding:9px 11px;box-shadow:0 4px 0 var(--edge)}
+.stat b{display:block;font:600 22px var(--px)}
+.stat span{color:var(--muted);font-size:12px}
+.watch{font:600 40px var(--px);text-align:center;color:var(--brand);margin:6px 0}
+.watch small{font-size:15px;color:var(--muted)}
+.verdict{border:3px solid var(--rim);border-radius:16px;padding:12px 14px;text-align:center;font:600 16px var(--px);box-shadow:0 4px 0 var(--edge)}
+.verdict.ok{background:#dff5e8;color:#0f5132;border-color:var(--safe)}
+.verdict.bad{background:#fde3e3;color:#7a1220;border-color:var(--crit)}
+:root[data-theme="dark"] .verdict.ok{background:#123a26;color:#a9f0c6}
+:root[data-theme="dark"] .verdict.bad{background:#4a1420;color:#ffc2c2}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .verdict.ok{background:#123a26;color:#a9f0c6}:root:not([data-theme="light"]) .verdict.bad{background:#4a1420;color:#ffc2c2}}
+ul.clean{list-style:none;margin:0;padding:0}
+ul.clean li{padding:8px 0;border-bottom:2px dashed var(--line);display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:14px}
+ul.clean li:last-child{border-bottom:0}
+.lrow b{font-weight:800}
+.badge{display:inline-block;border:2px solid var(--edge);border-radius:999px;padding:2px 9px;font:600 11px var(--px);color:#fff;white-space:nowrap}
+.pathline{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0;font-size:13px}
+.pathline span{background:var(--soft);border:2px solid var(--line);border-radius:999px;padding:4px 10px}
+.pathline span.weak{background:#fde3e3;border-color:var(--crit);color:#7a1220;font-weight:800}
+.tablewrap{overflow-x:auto}
+table.reg{border-collapse:collapse;width:100%;min-width:520px;font-size:13.5px}
+.reg th,.reg td{text-align:left;padding:7px 8px;border-bottom:2px solid var(--line)}
+.reg th{background:var(--soft);color:var(--muted);font-weight:800;font-size:11px}
+textarea.big{width:100%;min-height:120px;padding:9px;border:3px solid var(--rim);border-radius:12px;background:var(--field);color:var(--ink);font:12px/1.4 ui-monospace,Menlo,Consolas,monospace}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.cy-idx{text-align:center;padding:10px}.cy-idx b{font:700 52px var(--px);display:block;line-height:1}
+.cy-row{padding:8px 0;border-top:2px dashed var(--edge)}.cy-row:first-child{border:0}
+.cy-bar{height:12px;border:2px solid var(--rim);border-radius:9px;background:var(--accent);overflow:hidden;margin:4px 0}
+.cy-bar i{display:block;height:100%;background:var(--crit);transition:width .4s}
+.cy-ctl{display:flex;gap:10px;align-items:flex-start;padding:7px 0;font-weight:700}.cy-ctl input{width:22px;height:22px;margin-top:2px;accent-color:var(--brand)}
+.cy-win{background:var(--accent);color:var(--accent-ink);border-radius:12px;padding:8px 10px;font-weight:800;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="16" rx="7" ry="5.5" fill="var(--brand)" stroke="var(--rim)" stroke-width="1.4"/><circle cx="12" cy="8" r="5.2" fill="var(--brand)" stroke="var(--rim)" stroke-width="1.4"/><rect x="8" y="6.3" width="8" height="2.6" rx="1.3" fill="#1b1747"/><circle cx="9.6" cy="7.6" r=".9" fill="#fff"/><circle cx="14.4" cy="7.6" r=".9" fill="#fff"/></svg>
+  <div class="ttl"><h1>Red Team Mode</h1><p>Send Agent Pink undercover to find the fastest route to your most precious room — then patch it before a real intruder tries.</p></div>
+  <div class="actions">
+    <button id="bDownload" title="Download this app as an HTML file">⬇ Download</button>
+    <button id="bShare" title="Share this app">🔗 Share</button>
+  </div>
+</header>
+<nav class="tabs" role="tablist" aria-label="Sections">
+  <button role="tab" data-tab="map" aria-selected="true">🗺️ Campus</button>
+  <button role="tab" data-tab="sim" aria-selected="false">🕵️‍♀️ Run heist</button>
+  <button role="tab" data-tab="cyber" aria-selected="false">🧨 Cyber blast</button>
+  <button role="tab" data-tab="report" aria-selected="false">📋 Report</button>
+</nav>
+
+<section id="s-map" class="on">
+  <div class="note">Tap a room or door to adjust its lock, alarm and guard. Use <b>Place camera</b> to drop CCTV anywhere — it changes the odds instantly.</div>
+  <div class="card win"><h2>Campus map</h2>
+    <div class="bar" id="mapModes">
+      <button data-mode="select" aria-pressed="true">Select / edit</button>
+      <button data-mode="camera" aria-pressed="false">📹 Place camera</button>
+    </div>
+    <div class="mapbox" id="campusMap"></div>
+    <div class="legend">
+      <span><i style="background:#f08a24"></i>Fast to breach</span>
+      <span><i style="background:#2fa66a"></i>Slow / well defended</span>
+      <span>◆ entry point</span>
+      <span>🎯 target</span>
+    </div>
+  </div>
+  <div class="card win alt" id="panel"><p class="muted">Tap a room or door on the map to edit it.</p></div>
+</section>
+
+<section id="s-sim">
+  <div class="card win"><h2>Mission setup</h2>
+    <label class="f">🎯 Target room<select id="targetSel"></select></label>
+    <label class="f">🚓 Guard response time: <b id="respOut"></b> min<input type="range" id="resp" min="1" max="8" step=".5"></label>
+    <div class="bar" style="margin-top:6px"><button class="btn" id="runBtn">▶ Run heist on weakest route</button></div>
+  </div>
+  <div class="two">
+    <div class="card win">
+      <h2>Live infiltration</h2>
+      <div class="mapbox" id="simMap"></div>
+      <div class="watch"><span id="watchOut">0.0</span><small> min elapsed</small></div>
+      <div id="verdictBox"></div>
+      <div class="pathline" id="pathLine"></div>
+    </div>
+    <div>
+      <div class="card win alt"><h3>Weakest routes in</h3><ul class="clean" id="leaderboard"></ul></div>
+      <div class="card win" id="fixCard"></div>
+    </div>
+  </div>
+</section>
+
+<section id="s-report">
+  <div class="card win"><h2>Room report</h2><div class="tablewrap" id="roomTable"></div></div>
+  <div class="card win"><h2>Entry point report</h2><div class="tablewrap" id="entryTable"></div></div>
+  <div class="card win">
+    <h3>Export</h3>
+    <div class="bar"><button id="bCsv">Show CSV</button><button id="bCopy">Copy text</button></div>
+    <textarea id="outTxt" class="big" readonly placeholder="CSV appears here."></textarea>
+  </div>
+</section>
+</div>
+<section id="s-cyber">
+  <div class="card win"><h2>🧨 Cyber blast radius</h2>
+    <p class="muted">If Agent Pink gets physical access, which digital assets fall with her? Toggle controls to shrink the blast.</p>
+    <div class="cy-idx" id="cyIdx"></div></div>
+  <div class="card win alt"><h3>Digital assets at risk</h3><div id="cyAssets"></div></div>
+  <div class="card win"><h3>Controls</h3><div id="cyCtl"></div><div class="cy-win" id="cyBest"></div></div>
+</section>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+const SRC='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+const COLS=24, ROWS=14, C=30;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const pct=v=>Math.round(v*100)+'%';
+const cx=r=>r.x+r.w/2, cy=r=>r.y+r.h/2;
+
+const TYPES={server:'Server room',network:'Network cabinet',admin:'Records / finance office',lab:'Computer lab',storage:'Storage',classroom:'Classroom',lobby:'Lobby / reception',corridor:'Corridor'};
+const LOCKS={none:{label:'No lock',min:0},key:{label:'Mechanical key',min:1.5},card:{label:'Keycard / RFID',min:3},bio:{label:'Biometric + PIN',min:5}};
+const ENTRY_TYPES={main:'Main entrance',side:'Side / staff door',emergency:'Emergency exit',loading:'Loading dock'};
+
+const S={
+  rooms:[
+    {id:'lab',name:'Computer Lab',type:'lab',x:1,y:1,w:6,h:4,lock:'card',alarm:true},
+    {id:'reg',name:'Registrar Office',type:'admin',x:7,y:1,w:5,h:4,lock:'card',alarm:true},
+    {id:'sto',name:'IT Storage',type:'storage',x:12,y:1,w:4,h:4,lock:'key',alarm:false},
+    {id:'srv',name:'Server Room',type:'server',x:16,y:1,w:6,h:4,lock:'key',alarm:true},
+    {id:'cor',name:'Corridor A',type:'corridor',x:1,y:5,w:21,h:3,lock:'none',alarm:false},
+    {id:'lob',name:'Main Lobby',type:'lobby',x:1,y:8,w:7,h:5,lock:'none',alarm:false},
+    {id:'idf',name:'IDF Cabinet Room',type:'network',x:9,y:8,w:3,h:3,lock:'none',alarm:false},
+    {id:'lec',name:'Lecture Hall',type:'classroom',x:13,y:8,w:5,h:5,lock:'key',alarm:false},
+    {id:'load',name:'Loading Bay Store',type:'storage',x:18,y:8,w:4,h:5,lock:'none',alarm:false}
+  ],
+  entries:[
+    {id:'main',name:'Main entrance',type:'main',x:1,y:11,lock:'card',guard:true,alarm:true},
+    {id:'dock',name:'Loading dock door',type:'loading',x:22,y:11,lock:'key',guard:false,alarm:false},
+    {id:'emer',name:'Emergency exit',type:'emergency',x:22,y:6,lock:'none',guard:false,alarm:false},
+    {id:'side',name:'Staff side door',type:'side',x:14,y:13,lock:'key',guard:false,alarm:true}
+  ],
+  cameras:[{x:4,y:10,r:4.5},{x:11,y:6,r:5},{x:9,y:3,r:3.5}],
+  target:'srv'
+};
+const roomById=id=>S.rooms.find(r=>r.id===id);
+
+function coverageOf(r){
+  if(!S.cameras.length)return 0;
+  let tot=0,cov=0;const st=.5;
+  for(let x=r.x+st/2;x<r.x+r.w;x+=st)for(let y=r.y+st/2;y<r.y+r.h;y+=st){tot++;if(S.cameras.some(c=>Math.hypot(c.x-x,c.y-y)<=c.r))cov++;}
+  return tot?cov/tot:0;
+}
+function pointCovered(x,y){return S.cameras.some(c=>Math.hypot(c.x-x,c.y-y)<=c.r)}
+function roomCost(r){let c=.4+(LOCKS[r.lock]?.min??1.5);if(r.type==='server'||r.type==='network')c+=1;return +c.toFixed(2)}
+function roomDet(r){let p=.05+coverageOf(r)*.6;if(r.alarm)p+=.25;return Math.min(.95,p)}
+function entryCost(e){let c=LOCKS[e.lock]?.min??1.5;if(e.guard)c+=2;return +c.toFixed(2)}
+function entryDet(e){let p=.05;if(e.alarm)p+=.3;if(e.guard)p+=.2;return Math.min(.9,p)}
+function entryPointCovered(e){return pointCovered(e.x,e.y)}
+
+function roomsAdjacent(a,b){
+  const gap=1.25;
+  const xTouch=Math.abs((a.x+a.w)-b.x)<=gap||Math.abs((b.x+b.w)-a.x)<=gap;
+  const yTouch=Math.abs((a.y+a.h)-b.y)<=gap||Math.abs((b.y+b.h)-a.y)<=gap;
+  const xOver=a.x<b.x+b.w&&b.x<a.x+a.w, yOver=a.y<b.y+b.h&&b.y<a.y+a.h;
+  return (xTouch&&yOver)||(yTouch&&xOver);
+}
+function buildAdj(){
+  const adj={};S.rooms.forEach(r=>adj[r.id]=[]);
+  for(let i=0;i<S.rooms.length;i++)for(let j=i+1;j<S.rooms.length;j++)
+    if(roomsAdjacent(S.rooms[i],S.rooms[j])){adj[S.rooms[i].id].push(S.rooms[j].id);adj[S.rooms[j].id].push(S.rooms[i].id)}
+  return adj;
+}
+function nearestRoom(e){
+  let best=null,bd=Infinity;
+  S.rooms.forEach(r=>{const dx=Math.max(r.x-e.x,0,e.x-(r.x+r.w)),dy=Math.max(r.y-e.y,0,e.y-(r.y+r.h)),d=Math.hypot(dx,dy);if(d<bd){bd=d;best=r}});
+  return best;
+}
+function route(e,targetId){
+  const adj=buildAdj(), start=nearestRoom(e);
+  const dist={},prev={},done=new Set();
+  dist[start.id]=+(entryCost(e)+roomCost(start)).toFixed(2);
+  while(true){
+    let u=null,ud=Infinity;
+    for(const id in dist)if(!done.has(id)&&dist[id]<ud){ud=dist[id];u=id}
+    if(u===null)break; done.add(u); if(u===targetId)break;
+    (adj[u]||[]).forEach(v=>{
+      if(done.has(v))return;
+      const nd=+(dist[u]+roomCost(roomById(v))).toFixed(2);
+      if(dist[v]===undefined||nd<dist[v]){dist[v]=nd;prev[v]=u}
+    });
+  }
+  if(dist[targetId]===undefined)return null;
+  const path=[targetId];let cur=targetId;
+  while(prev[cur]){cur=prev[cur];path.unshift(cur)}
+  const det=1-(1-entryDet(e))*path.reduce((p,id)=>p*(1-roomDet(roomById(id))),1);
+  return {entry:e,time:dist[targetId],det,path};
+}
+function allRoutes(targetId){return S.entries.map(e=>route(e,targetId)).filter(Boolean).sort((a,b)=>a.time-b.time)}
+
+function baseSVG(opts){
+  const W=COLS*C,H=ROWS*C;
+  let s=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Campus map"><rect width="${W}" height="${H}" fill="var(--mapbg)"/>`;
+  if(opts.cctv)S.cameras.forEach(c=>{s+=`<circle class="mcov" cx="${c.x*C}" cy="${c.y*C}" r="${c.r*C}"/>`});
+  S.rooms.forEach(r=>{
+    const x=r.x*C,y=r.y*C,w=r.w*C,h=r.h*C,cost=roomCost(r);
+    const t=clamp(cost/6,0,1), col=`hsl(${(t*130)},68%,${opts.dark?38:52}%)`;
+    const on=opts.sel&&opts.sel.kind==='room'&&opts.sel.id===r.id;
+    const onPath=opts.path&&opts.path.includes(r.id);
+    s+=`<g data-k="room" data-id="${r.id}"><rect class="mroom${on?' sel':''}" x="${x}" y="${y}" width="${w}" height="${h}" rx="9" fill="${col}" fill-opacity="${onPath?.85:.55}"/>`;
+    const label=r.name.length>Math.max(4,Math.floor(w/6.5))?r.name.slice(0,Math.max(3,Math.floor(w/6.5)-1))+'…':r.name;
+    s+=`<text class="mtext" x="${x+w/2}" y="${y+h/2-2}">${r.id===S.target?'🎯 ':''}${esc(label)}</text>`;
+    s+=`<text class="msub" x="${x+w/2}" y="${y+h/2+13}">${cost} min</text></g>`;
+  });
+  S.entries.forEach(e=>{
+    const x=e.x*C,y=e.y*C,on=opts.sel&&opts.sel.kind==='entry'&&opts.sel.id===e.id;
+    const onPath=opts.entryId===e.id;
+    s+=`<g data-k="entry" data-id="${e.id}"><circle cx="${x}" cy="${y}" r="20" fill="transparent"/><polygon points="${x},${y-12} ${x+12},${y} ${x},${y+12} ${x-12},${y}" fill="${onPath?'var(--brand)':'#a3286b'}" stroke="${on?'var(--sel)':'var(--mstroke)'}" stroke-width="${on?4:2.5}"/></g>`;
+  });
+  if(opts.cctv)S.cameras.forEach((c,i)=>{s+=`<g data-k="camera" data-idx="${i}"><circle cx="${c.x*C}" cy="${c.y*C}" r="20" fill="transparent"/><circle class="mcam" cx="${c.x*C}" cy="${c.y*C}" r="9"/></g>`});
+  if(opts.trailPts&&opts.trailPts.length>1){
+    s+=`<polyline class="trail" points="${opts.trailPts.map(p=>p.x*C+','+p.y*C).join(' ')}"/>`;
+  }
+  if(opts.agent){s+=`<text class="agent" x="${opts.agent.x*C}" y="${opts.agent.y*C}">🕵️‍♀️</text>`}
+  return s+'</svg>';
+}
+
+let mode='select', sel=null;
+function renderMap(){$('#campusMap').innerHTML=baseSVG({cctv:true,sel})}
+$('#mapModes').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  mode=b.dataset.mode;document.querySelectorAll('#mapModes button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+});
+$('#campusMap').addEventListener('click',e=>{
+  const svg=e.currentTarget.querySelector('svg'),r=svg.getBoundingClientRect();
+  const gx=(e.clientX-r.left)/r.width*COLS, gy=(e.clientY-r.top)/r.height*ROWS;
+  if(mode==='camera'){
+    const g=e.target.closest('[data-k="camera"]');
+    if(g){S.cameras.splice(+g.dataset.idx,1)}
+    else S.cameras.push({x:+gx.toFixed(1),y:+gy.toFixed(1),r:4});
+    refreshAll();return;
+  }
+  const g=e.target.closest('[data-k]');
+  if(!g){sel=null;renderPanel();renderMap();return}
+  sel={kind:g.dataset.k,id:g.dataset.id};renderMap();renderPanel();
+});
+function renderPanel(){
+  const el=$('#panel');
+  if(!sel){el.innerHTML='<p class="muted">Tap a room or door on the map to edit it.</p>';return}
+  if(sel.kind==='room'){
+    const r=roomById(sel.id);
+    el.innerHTML=`<h3>${esc(r.name)}</h3><div class="muted">${TYPES[r.type]||r.type} · CCTV covers ${pct(coverageOf(r))} · breach time ${roomCost(r)} min · detect chance ${pct(roomDet(r))}</div>
+    <label class="f">Lock<select data-f="lock">${Object.entries(LOCKS).map(([k,v])=>`<option value="${k}"${k===r.lock?' selected':''}>${v.label}</option>`).join('')}</select></label>
+    <div class="checks"><label><input type="checkbox" data-f="alarm"${r.alarm?' checked':''}> Intrusion alarm</label></div>
+    <div class="bar" style="margin-top:8px"><button data-act="target" ${r.id===S.target?'disabled':''}>${r.id===S.target?'🎯 This is the target':'Set as target 🎯'}</button></div>`;
+  }else if(sel.kind==='entry'){
+    const e=S.entries.find(x=>x.id===sel.id);
+    el.innerHTML=`<h3>${esc(e.name)}</h3><div class="muted">${ENTRY_TYPES[e.type]||e.type} · breach time ${entryCost(e)} min · detect chance ${pct(entryDet(e))}${entryPointCovered(e)?' · seen by a camera':' · no camera view'}</div>
+    <label class="f">Lock<select data-f="lock">${Object.entries(LOCKS).map(([k,v])=>`<option value="${k}"${k===e.lock?' selected':''}>${v.label}</option>`).join('')}</select></label>
+    <div class="checks"><label><input type="checkbox" data-f="alarm"${e.alarm?' checked':''}> Door alarm</label><label><input type="checkbox" data-f="guard"${e.guard?' checked':''}> Staffed / guarded</label></div>`;
+  }
+}
+$('#panel').addEventListener('input',e=>{
+  const f=e.target.dataset.f;if(!f||!sel)return;
+  const it=sel.kind==='room'?roomById(sel.id):S.entries.find(x=>x.id===sel.id);
+  it[f]=e.target.type==='checkbox'?e.target.checked:e.target.value;
+  refreshAll();
+});
+$('#panel').addEventListener('click',e=>{
+  if(e.target.dataset.act==='target'){S.target=sel.id;refreshAll()}
+});
+
+function fillTargetSel(){
+  $('#targetSel').innerHTML=S.rooms.filter(r=>r.type!=='corridor').map(r=>`<option value="${r.id}"${r.id===S.target?' selected':''}>${esc(r.name)}</option>`).join('');
+}
+$('#targetSel').addEventListener('change',e=>{S.target=e.target.value;refreshAll()});
+let respMin=3;
+$('#resp').value=respMin;$('#respOut').textContent=respMin;
+$('#resp').addEventListener('input',e=>{respMin=+e.target.value;$('#respOut').textContent=respMin;renderLeaderboard()});
+
+function renderLeaderboard(){
+  const routes=allRoutes(S.target);
+  $('#leaderboard').innerHTML=routes.map((rt,i)=>{
+    const lvl=rt.time<respMin?'crit':rt.time<respMin*1.6?'warn':'safe';
+    const col={crit:'var(--crit)',warn:'var(--warn)',safe:'var(--safe)'}[lvl];
+    return `<li class="lrow"><span>${i===0?'🥇':i===1?'🥈':i===2?'🥉':'•'} ${esc(rt.entry.name)}</span><span><span class="badge" style="background:${col}">${rt.time.toFixed(1)} min</span> <button data-id="${rt.entry.id}" style="padding:5px 9px;font-size:12px">▶</button></span></li>`;
+  }).join('')||'<li class="muted">No route reaches this target.</li>';
+}
+$('#leaderboard').addEventListener('click',e=>{const b=e.target.closest('button');if(b)runHeist(b.dataset.id)});
+$('#runBtn').addEventListener('click',()=>{const r=allRoutes(S.target)[0];if(r)runHeist(r.entry.id)});
+
+let simState=null;
+function renderSimMap(){
+  const trailPts=simState?simState.waypoints.slice(0,simState.doneCount+1):null;
+  $('#simMap').innerHTML=baseSVG({cctv:true,path:simState?simState.route.path:null,entryId:simState?simState.route.entry.id:null,trailPts,agent:simState?simState.agentPos:null});
+}
+function runHeist(entryId){
+  const e=S.entries.find(x=>x.id===entryId), rt=route(e,S.target);
+  if(!rt)return;
+  const waypoints=[{x:e.x,y:e.y,cost:0,label:e.name}];
+  waypoints.push({x:cx(roomById(rt.path[0])),y:cy(roomById(rt.path[0])),cost:entryCost(e)+roomCost(roomById(rt.path[0])),label:roomById(rt.path[0]).name});
+  for(let i=1;i<rt.path.length;i++){
+    const r=roomById(rt.path[i]);
+    waypoints.push({x:cx(r),y:cy(r),cost:roomCost(r),label:r.name});
+  }
+  $('#runBtn').disabled=true;
+  simState={route:rt,waypoints,doneCount:0,agentPos:{x:e.x,y:e.y}};
+  $('#verdictBox').innerHTML='';$('#pathLine').innerHTML='';$('#watchOut').textContent='0.0';
+  renderSimMap();
+  let i=0,cum2=0;
+  function nextHop(){
+    if(i>=waypoints.length-1){finishHeist(rt,cum2);return}
+    const a=waypoints[i],b=waypoints[i+1],dur=Math.max(450,b.cost*420);
+    const t0=performance.now();
+    function frame(now){
+      const t=Math.min(1,(now-t0)/dur);
+      simState.agentPos={x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};
+      $('#watchOut').textContent=(cum2+b.cost*t).toFixed(1);
+      renderSimMap();
+      if(t<1)requestAnimationFrame(frame);
+      else{cum2+=b.cost;simState.doneCount=i+1;i++;nextHop()}
+    }
+    requestAnimationFrame(frame);
+  }
+  nextHop();
+}
+function finishHeist(rt,total){
+  $('#runBtn').disabled=false;
+  const breached=total<respMin;
+  $('#verdictBox').innerHTML=`<div class="verdict ${breached?'bad':'ok'}">${breached?'🚨 BREACHED':'✅ SECURE'} — Agent Pink reached the target in ${total.toFixed(1)} min, guards respond in ${respMin} min. Detection risk along the way: ${pct(rt.det)}.</div>`;
+  const costs=rt.path.map(id=>({id,c:roomCost(roomById(id))}));
+  const weakest=costs.reduce((a,b)=>b.c<a.c?b:a,costs[0]);
+  $('#pathLine').innerHTML=[rt.entry.name,...rt.path.map(id=>roomById(id).name)].map((n,i)=>{
+    const isWeak=i>0&&rt.path[i-1]===weakest.id;
+    return `<span${isWeak?' class="weak"':''}>${esc(n)}</span>`;
+  }).join('→');
+  const wroom=roomById(weakest.id);
+  $('#fixCard').innerHTML=`<h3>🔧 Fastest fix</h3><p><b>${esc(wroom.name)}</b> is the weakest link on this route — only ${weakest.c} min to breach.</p><p class="muted">Try a stronger lock, an alarm, or a camera nearby, then re-run the heist to see the time change.</p><button id="jumpFix">Edit this room</button>`;
+  $('#jumpFix').onclick=()=>{sel={kind:'room',id:wroom.id};document.querySelector('[data-tab="map"]').click();renderPanel();renderMap()};
+  renderLeaderboard();renderReport();
+}
+
+function renderReport(){
+  $('#roomTable').innerHTML='<table class="reg"><tr><th>Room</th><th>Type</th><th>Lock</th><th>CCTV</th><th>Breach min</th><th>Detect %</th></tr>'+
+    [...S.rooms].sort((a,b)=>roomCost(a)-roomCost(b)).map(r=>`<tr><td>${r.id===S.target?'🎯 ':''}${esc(r.name)}</td><td>${TYPES[r.type]||r.type}</td><td>${LOCKS[r.lock].label}</td><td>${pct(coverageOf(r))}</td><td>${roomCost(r)}</td><td>${pct(roomDet(r))}</td></tr>`).join('')+'</table>';
+  $('#entryTable').innerHTML='<table class="reg"><tr><th>Entry</th><th>Type</th><th>Lock</th><th>Guard</th><th>Breach min</th><th>Detect %</th></tr>'+
+    [...S.entries].sort((a,b)=>entryCost(a)-entryCost(b)).map(e=>`<tr><td>${esc(e.name)}</td><td>${ENTRY_TYPES[e.type]||e.type}</td><td>${LOCKS[e.lock].label}</td><td>${e.guard?'Yes':'No'}</td><td>${entryCost(e)}</td><td>${pct(entryDet(e))}</td></tr>`).join('')+'</table>';
+}
+const csvq=v=>'"'+String(v).replace(/"/g,'""')+'"';
+$('#bCsv').onclick=()=>{
+  const rows=[['Item','Kind','Lock','Breach min','Detect %']];
+  S.rooms.forEach(r=>rows.push([r.name,'Room',LOCKS[r.lock].label,roomCost(r),pct(roomDet(r))]));
+  S.entries.forEach(e=>rows.push([e.name,'Entry',LOCKS[e.lock].label,entryCost(e),pct(entryDet(e))]));
+  $('#outTxt').value=rows.map(r=>r.map(csvq).join(',')).join('\n');
+};
+$('#bCopy').onclick=async()=>{
+  const t=$('#outTxt');if(!t.value)return;
+  try{await navigator.clipboard.writeText(t.value);toast('Copied!')}catch(e){t.focus();t.select()}
+};
+
+/* ---------- Download & Share ---------- */
+let toastT;
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2200)}
+const FILE_NAME='safecampus-red-team.html';
+$('#bDownload').onclick=()=>{
+  try{
+    const blob=new Blob([SRC],{type:'text/html'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=FILE_NAME;
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    toast('Downloading…');
+  }catch(e){toast('Download not available here')}
+};
+$('#bShare').onclick=async()=>{
+  const data={title:'SafeCampus – Red Team Mode',text:'Try SafeCampus Red Team Mode: find and fix the weakest route into your campus.'};
+  const isWeb=/^https?:/.test(location.protocol);
+  try{
+    if(navigator.share){
+      const file=new File([SRC],FILE_NAME,{type:'text/html'});
+      if(!isWeb&&navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({...data,files:[file]});
+      else if(isWeb)await navigator.share({...data,url:location.href});
+      else await navigator.share(data);
+      return;
+    }
+  }catch(e){if(e&&e.name==='AbortError')return}
+  try{
+    await navigator.clipboard.writeText(isWeb?location.href:data.title+' — '+data.text);
+    toast(isWeb?'Link copied!':'Message copied!');
+  }catch(e){toast('Sharing not supported — use Download')}
+};
+
+function refreshAll(){fillTargetSel();renderMap();renderPanel();renderLeaderboard();renderReport()}
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('[data-tab]').forEach(x=>x.setAttribute('aria-selected',x===b));
+  document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id==='s-'+b.dataset.tab));
+  window.scrollTo(0,0);
+});
+refreshAll();
+
+const CY_ASSETS=[
+ {n:'Student records DB',room:'srv',v:10,ctl:['enc','mfa','rack'],pivot:'Console access + drive pull'},
+ {n:'Backup NAS',room:'srv',v:8,ctl:['enc','offbk','rack'],pivot:'Backups copied or wiped'},
+ {n:'Campus core switch / Wi-Fi',room:'idf',v:9,ctl:['nac','rack'],pivot:'Rogue device plugged into a live port'},
+ {n:'Shared lab admin PCs',room:'lab',v:6,ctl:['mfa','nac','enc'],pivot:'Logged-in session or USB boot'},
+ {n:'Registrar terminals',room:'reg',v:7,ctl:['enc','mfa'],pivot:'Unlocked terminal, printed records'},
+ {n:'Spare laptops & drives',room:'sto',v:5,ctl:['enc'],pivot:'Devices walk out the door'}];
+const CY_CTL={enc:['💽','Full-disk encryption',.6],nac:['🔌','Port security / 802.1X',.5],rack:['🔒','Locked racks + tamper seals',.4],offbk:['📼','Offline backups',.7],mfa:['🔑','MFA on admin consoles',.35]};
+const cyOn=new Set();
+function cyCalc(on){
+  return CY_ASSETS.map(a=>{
+    const rs=allRoutes(a.room),t=rs.length?rs[0].time:99;
+    const reach=t<respMin?1:t<respMin*1.5?.5:.15;
+    let m=1;a.ctl.forEach(c=>{if(on.has(c))m*=1-CY_CTL[c][2]});
+    return {...a,t,reach,risk:a.v*reach*m};
+  });
+}
+const cyIdx=r=>Math.round(100*r.reduce((p,a)=>p+a.risk,0)/CY_ASSETS.reduce((p,a)=>p+a.v,0));
+function renderCyber(){
+  const r=cyCalc(cyOn),ix=cyIdx(r);
+  $('#cyIdx').innerHTML=`<b style="color:${ix>50?'var(--crit)':ix>25?'#c77a00':'var(--safe)'}">${ix}</b><small>Cyber exposure index (0 = safe)</small>`;
+  $('#cyAssets').innerHTML=[...r].sort((a,b)=>b.risk-a.risk).map(a=>`<div class="cy-row"><div class="lrow"><span><b>${esc(a.n)}</b> · ${esc(roomById(a.room).name)}</span><span>${a.reach===1?'🚨 first':a.reach===.5?'⚠️ contested':'🛡️ held'}</span></div><div class="cy-bar"><i style="width:${a.risk*10}%"></i></div><small class="muted">Reached in ${a.t.toFixed(1)} min vs ${respMin} min response · ${esc(a.pivot)}</small></div>`).join('');
+  $('#cyCtl').innerHTML=Object.entries(CY_CTL).map(([k,c])=>`<label class="cy-ctl"><input type="checkbox" data-c="${k}" ${cyOn.has(k)?'checked':''}><span>${c[0]} ${c[1]} <small class="muted">−${c[2]*100}% on matching assets</small></span></label>`).join('');
+  $('#cyCtl').querySelectorAll('input').forEach(i=>i.onchange=()=>{i.checked?cyOn.add(i.dataset.c):cyOn.delete(i.dataset.c);renderCyber()});
+  const left=Object.keys(CY_CTL).filter(k=>!cyOn.has(k));
+  if(!left.length||ix===0){$('#cyBest').textContent='✅ Every control is on — blast radius minimised.';return}
+  const best=left.map(k=>({k,d:ix-cyIdx(cyCalc(new Set([...cyOn,k])))})).sort((a,b)=>b.d-a.d)[0];
+  $('#cyBest').textContent=`💡 Best next control: ${CY_CTL[best.k][1]} (−${best.d} points)`;
+}
+document.querySelector('[data-tab="cyber"]').addEventListener('click',renderCyber);
+renderCyber();
+</script>
+</body>
+</html>
